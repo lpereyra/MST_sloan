@@ -7,21 +7,27 @@
 
 int     nfrac               ;
 char    message[200]        ;
-double  rmaplim             ;  /* MAGNITUD APARENTE LIMITE DEL CATALOGO      */
-double  rmapmin             ;  /* MAGNITUD APARENTE MINIMA DEL CATALOGO      */
-double  redmax              ;  /* REDSHIT MAXIMO                             */
-double  redmin              ;  /* REDSHIT MINIMO                             */
-double  zcut                ;  /* REDSHIT CUT                                */
-double  flfia               ;  /* AMPLITUD DE LA FL                          */
-double  flma                ;  /* MAGNITUD CARACTERISTICA DE LA FL           */
-double  flalfa              ;  /* PENDIENTE EN EL EXTREMO DEBIL DE LA FL     */
+double  rmaplim             ;  // MAGNITUD APARENTE LIMITE DEL CATALOGO    
+double  rmapmin             ;  // MAGNITUD APARENTE MINIMA DEL CATALOGO    
+double  redmax              ;  // REDSHIT MAXIMO                           
+double  redmin              ;  // REDSHIT MINIMO                           
+double  flfia               ;  // AMPLITUD DE LA FL                        
+double  flma                ;  // MAGNITUD CARACTERISTICA DE LA FL         
+double  flalfa              ;  // PENDIENTE EN EL EXTREMO DEBIL DE LA FL     
+double  vfid                ;  // VELOCIDAD FIDUCIAL                   
+double  v0                  ;  // EN MPC H^-1                          
+double  rmablim             ;  // MAGNITUD ABSOLUTA LIMITE DEL CATALOGO
+double  rmabmin             ;  // MAGNITUD ABSOLUTA MINIMA DEL CATALOGO
+double  rintlim             ;  // INTEGRAL ENTRE LAS MAGNITUDES LIMITES
 float   pmin[3]             ;
 float   pmax[3]             ;
 double  *fof                ;
+#ifdef LIM_VOL
+double  zcut                ;  // REDSHIT CUT                              
+#endif
 #ifdef GAL_LUM
 float   mcut                ;
 #endif
-
 
 void init_variables(int argc, char **argv){
   FILE *pfin;
@@ -57,6 +63,12 @@ void init_variables(int argc, char **argv){
     exit(0);
   }
 
+  if(!fscanf(pfin,"%lf  \n",&vfid))
+  {
+    sprintf(message,"can't read file `%s`\nvel fiducial\n",filename);RED(message);
+    exit(0);
+  }
+
   if(!fscanf(pfin,"%lf \n",&fof[0]))
   {
     sprintf(message,"can't read file `%s`\nlen fof[0]\n",filename);RED(message);
@@ -73,10 +85,6 @@ void init_variables(int argc, char **argv){
   if(!fscanf(pfin,"%f \n",&mcut))
   {
     sprintf(message,"can't read file `%s`\nneed mcut\n",filename);RED(message);
-    if(mcut>=0.)
-    {
-      sprintf(message,"error mcut\n");RED(message);
-    }
     exit(0);
   }
 
@@ -87,16 +95,30 @@ void init_variables(int argc, char **argv){
   }
   #endif
 
+  #ifdef LIM_VOL
+  if(!fscanf(pfin,"%lf \n",&zcut))
+  {
+    sprintf(message,"can't read file `%s`\n redshift cut\n",filename);RED(message);
+    exit(0);
+  }
+
+  if(zcut<0.)
+  {
+    sprintf(message,"error mcut\n");RED(message);
+    exit(0);
+  }
+  #endif
+
   fclose(pfin);  
 
-  rmaplim  = 17.77    ;  /* MAGNITUD APARENTE LIMITE DEL CATALOGO      */
-  rmapmin  = 14.5     ;  /* MAGNITUD APARENTE MINIMA DEL CATALOGO      */
-  redmax   = 0.3      ;  /* REDSHIT MAXIMO                             */
-  redmin   = 0.01     ;  /* REDSHIT MINIMO                             */
-  zcut     = 0.1      ;  /* REDSHIT CORTE                             */
-  flfia    = 0.0149   ;  /* AMPLITUD DE LA FL                          */
-  flma     = -20.44   ;  /* MAGNITUD CARACTERISTICA DE LA FL           */
-  flalfa   = -1.05    ;  /* PENDIENTE EN EL EXTREMO DEBIL DE LA FL     */
+  rmaplim  = 17.77    ;  // MAGNITUD APARENTE LIMITE DEL CATALOGO      
+  rmapmin  = 14.5     ;  // MAGNITUD APARENTE MINIMA DEL CATALOGO      
+  redmax   = 0.2      ;  // REDSHIT MAXIMO                             
+  redmin   = 0.01     ;  // REDSHIT MINIMO                             
+  flfia    = 0.0149   ;  // AMPLITUD DE LA FL                          
+  flma     = -20.44   ;  // MAGNITUD CARACTERISTICA DE LA FL           
+  flalfa   = -1.05    ;  // PENDIENTE EN EL EXTREMO DEBIL DE LA FL     
+  v0       = 2.0      ;  // EN MPC H^-1   VELOCIDAD FIDUCIAL           
 
   BLUE("********** Information ***********\n");
   sprintf(message,"Snapshots directory:     %s\n",snap.root);BLUE(message);
@@ -105,16 +127,27 @@ void init_variables(int argc, char **argv){
   sprintf(message,"Identification steps:    %d\n",nfrac);BLUE(message);
   sprintf(message,"Magnitud aparente limite %f\n",rmaplim);BLUE(message);
   sprintf(message,"Magnitud aparente minima %f\n",rmapmin);BLUE(message);
+  #ifdef LIM_VOL
   sprintf(message,"redshift cut             %f\n",zcut);BLUE(message);
+  #endif
   BLUE("************* Options ************\n");
   sprintf(message,"primera identificacion   %f\n",fof[0]);RED(message);
   sprintf(message,"segunda identificacion   %f\n",fof[1]);RED(message);
   #ifdef GAL_LUM
   sprintf(message,"glx mas luminosas que    %f\n",mcut);RED(message);
   #endif
-  #ifdef LEN_MANUEL
-  RED("LEN MANUEL\n");
+  BLUE("************* LEN FOF ************\n");
+  #ifdef LEN_FOF_MERCHAN
+  GREEN("Usa LEN FOF MERCHAN");
+  #else
+  GREEN("Usa LEN FOF APROX VOL");
   #endif
+  BLUE("**********************************\n");
+
+  #ifdef LOCK
+  RED("USING LOCKS\n");
+  #endif
+
 
   GREEN("END\n");
 }

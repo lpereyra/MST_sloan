@@ -13,7 +13,26 @@
 #include "voronoi.h"
 #include "voro++.hh"
 
-bool dist_segment(double fof_2, int idg, float x, float y, float z)
+void locate(double xx[], unsigned long n, float x, unsigned long *j)
+{
+  unsigned long ju,jm,jl;
+  int ascnd;
+
+  jl=0;
+  ju=n+1;
+  ascnd=(xx[n-1] > xx[0]);
+  while(ju-jl > 1)
+  {
+    jm=(ju+jl) >> 1;
+    if((x > xx[jm-1])  == ascnd)
+      jl=jm;
+    else
+      ju=jm;
+  }
+  *j=jl;
+}
+
+bool dist_segment(double fof, int idg, float x, float y, float z)
 {
   int i, ibox;
   int ixc, iyc, izc;
@@ -22,7 +41,42 @@ bool dist_segment(double fof_2, int idg, float x, float y, float z)
   int ixcf, iycf, izcf;
   int xi, yi, zi;
   double fac;
-  double dx,dy,dz,r;
+  int itabla,imintabla;
+  float rscale,vl,v12;
+  float rm12,rmmin12;
+  float r[3],dl,dl1,dl2,d12;
+  float rint12,rint121,rint122;
+  float d1,d2,tita12;
+  float red1,delta1,alfa1;
+  float tridif,numera,alfa12;
+  long unsigned indx;
+
+  r[0] = x + pmin[0];
+  r[1] = y + pmin[1];
+  r[2] = z + pmin[2];
+
+  d1 = sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]);                                                     // distancia cosmologica
+  locate(dis2red,NTABLADIS,d1,&indx);                                                         
+  red1 = (rt[indx]-rt[indx-1])/(dis2red[indx]-dis2red[indx-1])*(d1-dis2red[indx-1])+rt[indx-1]; // redshift
+  
+  delta1 = atan2(z,sqrt(x*x+y*y));
+
+  if(z>=0.0)
+    delta1 += M_PI;
+    
+  if(x>0)
+  {
+    if(y>=0)
+      alfa1 = atan2(y,x);
+    else
+      alfa1 = 2*M_PI + atan2(y,x);
+  }else if(x<0){
+      alfa1 = M_PI + atan2(y,x);
+  }else{    
+      alfa1 = 0.5*M_PI*(y/fabs(y));
+  }
+
+  dl1 = d1*(1.0+red1); // distancia luminosidad
 
   fac = (double)grid.ngrid/(double)cp.lbox;
 
@@ -77,26 +131,64 @@ bool dist_segment(double fof_2, int idg, float x, float y, float z)
         while(i != -1)
         {
 
-          if(P[i].sub==idg)
+         if(P[i].sub==idg)
+         {
+
+          d2   = P[i].Dis;                    // distancia cosmologica
+          dl2  = d2*(1.0+gal[i].gal.red);     // distancia luminosidad 
+
+          rm12 = rmaplim-25.0-5.0*log10((dl1+dl2)/2.);
+          rmmin12 = rmapmin-25.0-5.0*log10((dl1+dl2)/2.);
+
+          // CALCULA LA INTEGRAL DEL FACTOR DE ESCALA
+          itabla=(int)((rm12-mt2min)/dmt2);
+          imintabla=(int)((rmmin12-mt1min)/dmt1);
+
+          if(itabla<0 || itabla >= NTABLA )
           {
-            dx = P[i].Pos[0] - x;
-            dy = P[i].Pos[1] - y;
-            dz = P[i].Pos[2] - z;
+            fprintf(stdout,"XXXX itabla  = %d\n ",itabla);
+            exit(-33);
+          }
 
-            #ifdef PERIODIC
-            dx = dx >= cp.lbox*0.5 ? dx-cp.lbox : dx;
-            dx = dx < -cp.lbox*0.5 ? dx+cp.lbox : dx;
+          if(imintabla<0 || imintabla >= NTABLA)
+          {
+            fprintf(stdout,"XXXX imintabla= %d\n ",imintabla);
+            exit(-33);
+          }
 
-            dy = dy >= cp.lbox*0.5 ? dy-cp.lbox : dy;
-            dy = dy < -cp.lbox*0.5 ? dy+cp.lbox : dy;
+          rint12  = (rinttabla[imintabla][itabla+1]-rinttabla[imintabla][itabla])/dmt2;
+          rint121 = rint12*(rm12-itabla*dmt2-mt2min)+rinttabla[imintabla][itabla];
 
-            dz = dz >= cp.lbox*0.5 ? dz-cp.lbox : dz;
-            dz = dz < -cp.lbox*0.5 ? dz+cp.lbox : dz;
-            #endif
+          rint12  = (rinttabla[imintabla+1][itabla+1]-rinttabla[imintabla+1][itabla])/dmt2;
+          rint122 = rint12*(rm12-itabla*dmt2-mt2min)+rinttabla[imintabla+1][itabla];
 
-            r = dx*dx+dy*dy+dz*dz;
-            if(r<fof_2)
-              return true;
+          rint12 = (rint122-rint121)/dmt1;
+          rint12 = rint12*(rmmin12-imintabla*dmt1-mt1min)+rint121;
+
+          rscale = pow(rint12/rintlim,-0.33333);
+          dl = fof*rscale;
+          vl = v0*rscale;
+
+          alfa12 = gal[i].gal.alfa-alfa1;
+          tita12 = sin(gal[i].gal.delta)*sin(delta1)+cos(gal[i].gal.delta)*cos(delta1)*cos(alfa12);
+
+          numera = (cos(gal[i].gal.delta)*sin(alfa12));
+          numera *= numera;
+
+          tridif = cos(delta1)*sin(gal[i].gal.delta)-sin(delta1)*cos(gal[i].gal.delta)*cos(alfa12);
+          tridif *= tridif;
+
+          numera += tridif;
+          numera = sqrt(numera);
+
+          tita12 = atan2(numera,tita12);
+
+          d12 = sin(tita12/2.0)*(d1+d2);
+          v12 = fabs(d1-d2);
+
+          if((d12<dl) && (v12<vl))
+            return true;
+
           }
 
          i = grid.ll[i];
@@ -119,13 +211,12 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
   bool xbool, ybool, zbool;
   double x_min, y_min, z_min;	  
   double x_max, y_max, z_max;	  
-  double dx,dy,dz,r,r0,r0_2,frac;
-  double rmablim,rmabmin;
-  #ifdef LEN_MANUEL
-  double rintlim;
-  #endif
+  double dx,dy,dz,r,d0,r0,frac;
   std::vector<int>  vec;
   voro::voronoicell_neighbor cell;
+  float v12,d12;
+  float d1,d2,tita12;
+  float tridif,numera,alfa12;
 
   Ngrid = (int)pow((float)ngrup/5.0,1.0/3.0);
   #ifdef PERIODIC
@@ -142,30 +233,31 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
   omp_set_num_threads(NTHREADS);
   #endif
 
-  N_threads = NTHREADS > 16 ? 16 : NTHREADS;
+  N_threads = NTHREADS;
 
-  rmablim = rmaplim-25.0-5.0*log10(red2dis(0.1)*(1.+0.1));  // MAGNITUD ABSOLUTA LIMITE DEL CATALOGO  
-  rmabmin = rmapmin-25.0-5.0*log10(red2dis(0.1)*(1.+0.1));  // MAGNITUD ABSOLUTA MINIMA DEL CATALOGO  
-  #ifdef LEN_MANUEL
-  rintlim = intfl(rmabmin,rmablim);                         // INTEGRAL ENTRE LAS MAGNITUDES LIMITES
-  #endif
-
-  fprintf(stdout, "INTEGRAL LIMITES\n");
-  fprintf(stdout, "%f MABS correspondiente a %f MAPA\n",rmabmin, rmapmin);
-  fprintf(stdout, "%f MABS correspondiente a %f MAPA\n",rmablim, rmaplim);
-  fflush(stdout);
- 
-  #ifdef LEN_MANUEL
-    r0 = 3.0/(4.0*M_PI*(fof+1)*(0.4*log(10.0)*flfia*rintlim));
-    r0 = cbrt(r0);
+  #ifdef LEN_FOF_MERCHAN
+    d0 = 3.0/(4.0*M_PI*(fof+1)*(0.4*log(10.0)*flfia*rintlim));
   #else
-    r0 = cbrt(cp.vol/(cp.npart*(fof+1)));
-    //r0 = 4.8021674285117184*cbrt(1./(fof+1));
+    d0 = 3.0*cp.vol/(4.0*M_PI*(cp.npart*(fof+1.0))); // cbrt(vol/(npart*(fof+1)))
   #endif
+  d0 = cbrt(d0);
+
+  r0 = v0;
+  if(d0>r0)
+  {
+    r0=d0;
+    fprintf(stdout,"d0 > v0, %f > %f \n",d0,v0);
+  }else{
+    fprintf(stdout,"v0 > d0, %f > %f \n",v0,d0); 
+  }
 
   /// INICIA LOS PARAMETROS DE LA GRILLA ///
   grid.nobj = cp.npart;
-  grid.ngrid = (int)(cp.lbox/r0);
+  #ifdef LIM_VOL
+    grid.ngrid = (int)(cp.lbox/(r0*pow(intfl(MAGMENOSINF,rmaplim-25.0-5.0*log10(cp.dlummax))/rintlim,-1./3.)));
+  #else
+    grid.ngrid = (int)(cp.lbox/(r0*pow(intfl(rmapmin-25.0-5.0*log10(cp.dlummax),rmaplim-25.0-5.0*log10(cp.dlummax))/rintlim,-1./3.)));
+  #endif
   grid.step = 1;
 
   if(grid.ngrid > NGRIDMAX)
@@ -177,8 +269,6 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
   grid_init();
   grid_build();
 
-  r0_2 = r0*r0; // Para usar el cuadrado
-
   // Creo el container
   voro::container con(x_min,x_max,y_min,y_max,z_min,z_max,Ngrid,Ngrid,Ngrid,xbool,ybool,zbool,8);
 
@@ -188,7 +278,7 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
   assert(ngrup==con.total_particles());
 
   voro::c_loop_all clo(con);
-  std::vector<std::vector<std::pair<float,std::pair<int,int> > > > lados(N_threads-1);
+  std::vector<std::vector<std::pair<float,std::pair<int,int> > > > lados(N_threads);
   
   if(clo.start()) do if(con.compute_cell(cell,clo))
   {
@@ -196,8 +286,24 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
     id = clo.pid();
     cell.neighbors(vec);
 
-    //#pragma omp parallel for num_threads(N_threads) schedule(static) default(none) \
-    //private(Tid,j,idv,dx,dy,dz,r) shared(id,r0,vec,cp,Gr,grid,lados,edges,stdout)
+    N_threads = (int)vec.size()>N_threads ? N_threads : (int)vec.size();
+
+    #ifdef GAL_LUM
+
+      d1   = P[Gr[id].id].Dis;                    // distancia cosmologica
+
+    #else
+
+      d1 = sqrt(Gr[id].Pos[0]*Gr[id].Pos[0]+ \
+                Gr[id].Pos[1]*Gr[id].Pos[1]+ \
+                Gr[id].Pos[2]*Gr[id].Pos[2]); // distancia cosmologica      
+
+    #endif
+
+    #pragma omp parallel for num_threads(N_threads) schedule(static) \
+    default(none) private(Tid,j,idv,dx,dy,dz,r,frac,itera, \
+    d2,tridif,numera,alfa12,tita12,d12,v12) \
+    shared(id,vec,d0,cp,Gr,grid,lados,d1,P,gal)
     for(j=0; j<(int)vec.size(); j++)
     {
 
@@ -210,7 +316,6 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
 
       if(Gr[id].id>Gr[idv].id)
       {
-
         dx = Gr[idv].Pos[0] - Gr[id].Pos[0];
         dy = Gr[idv].Pos[1] - Gr[id].Pos[1];
         dz = Gr[idv].Pos[2] - Gr[id].Pos[2];
@@ -221,19 +326,19 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
 
         dy = dy >= cp.lbox*0.5 ? dy-cp.lbox : dy;
         dy = dy < -cp.lbox*0.5 ? dy+cp.lbox : dy;
-
+  
         dz = dz >= cp.lbox*0.5 ? dz-cp.lbox : dz;
         dz = dz < -cp.lbox*0.5 ? dz+cp.lbox : dz;
         #endif
 
         r = sqrt(dx*dx+dy*dy+dz*dz);
 
-        itera = (int)(r/r0);
-
+        itera = (int)(r/d0);
+  
         while(itera>0)
         {
-          frac = (double)itera*(r0/r);
-          if(!dist_segment(r0_2,Gr[id].save,Gr[id].Pos[0]+frac*dx,Gr[id].Pos[1]+frac*dy,Gr[id].Pos[2]+frac*dz))
+          frac = (double)itera*(d0/r);
+          if(!dist_segment(d0,Gr[id].save,Gr[id].Pos[0]+frac*dx,Gr[id].Pos[1]+frac*dy,Gr[id].Pos[2]+frac*dz))
             break;
           else  
             itera--; 
@@ -241,20 +346,67 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
 
         if(itera!=0) continue;
 
-        //if(!dist_segment(r0,Gr[id].save,Gr[id].Pos[0]+0.5*dx,Gr[id].Pos[1]+0.5*dy,Gr[id].Pos[2]+0.5*dz)) continue;
+        #ifdef GAL_LUM
+    
+          d2   = P[Gr[idv].id].Dis;                    // distancia cosmologica
+
+        #else
+
+          d2 = sqrt(Gr[idv].Pos[0]*Gr[idv].Pos[0]+ \
+                    Gr[idv].Pos[1]*Gr[idv].Pos[1]+ \
+                    Gr[idv].Pos[2]*Gr[idv].Pos[2]); // distancia cosmologica      
+
+        #endif
 
         #ifdef GAL_LUM
-          r = -(Gr[id].mr*Gr[idv].mr)/(dx*dx+dy*dy+dz*dz);
+
+          alfa12 = gal[Gr[idv].id].gal.alfa-gal[Gr[id].id].gal.alfa;
+
+          tita12 = sin(gal[Gr[idv].id].gal.delta)*sin(gal[Gr[id].id].gal.delta)+ \
+                   cos(gal[Gr[idv].id].gal.delta)*cos(gal[Gr[id].id].gal.delta)*cos(alfa12);
+
+          numera = (cos(gal[Gr[idv].id].gal.delta)*sin(alfa12));
+          numera *= numera;
+
+          tridif = cos(gal[Gr[id].id].gal.delta)*sin(gal[Gr[idv].id].gal.delta)- \
+          sin(gal[Gr[id].id].gal.delta)*cos(gal[Gr[idv].id].gal.delta)*cos(alfa12);
+          tridif *= tridif;
+
         #else
-          r = -((float)Gr[id].NumPart*(float)Gr[idv].NumPart)/(dx*dx+dy*dy+dz*dz);
+
+          alfa12 = gal[Gr[idv].id].gal.alfa-gal[Gr[id].id].gal.alfa;
+
+          tita12 = sin(gal[Gr[idv].id].gal.delta)*sin(gal[Gr[id].id].gal.delta)+ \
+                   cos(gal[Gr[idv].id].gal.delta)*cos(gal[Gr[id].id].gal.delta)*cos(alfa12);
+
+          numera = (cos(gal[Gr[idv].id].gal.delta)*sin(alfa12));
+          numera *= numera;
+
+          tridif = cos(gal[Gr[id].id].gal.delta)*sin(gal[Gr[idv].id].gal.delta)- \
+          sin(gal[Gr[id].id].gal.delta)*cos(gal[Gr[idv].id].gal.delta)*cos(alfa12);
+          tridif *= tridif;
+
+          
+
         #endif
-        //r = sqrt(dx*dx+dy*dy+dz*dz);
 
-        if(Tid!=0)   
-          lados[Tid-1].push_back(std::make_pair((float)r,std::make_pair(idv,id)));
-        else
-          edges.push_back(std::make_pair((float)r,std::make_pair(idv,id)));
+        numera += tridif;
+        numera = sqrt(numera);
 
+        tita12 = atan2(numera,tita12);
+
+        d12 = sin(tita12/2.0)*(d1+d2);
+        v12 = fabs(d1-d2);          
+        r = d12*d12+v12*v12;
+
+        #ifdef GAL_LUM
+          // MAGsun_r = 4.71         // mag_r Hill et al 2010 - https://arxiv.org/pdf/1002.3788.pdf
+          r = -(pow(10.0,-0.4*(Gr[id].mr-4.71))*pow(10.0,-0.4*(Gr[idv].mr-4.71)))/r;
+        #else
+          r = -((float)Gr[id].NumPart*(float)Gr[idv].NumPart)/r;
+        #endif
+
+        lados[Tid].push_back(std::make_pair((float)r,std::make_pair(idv,id)));
       }
 
     }
@@ -269,7 +421,7 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
   free(P);
   #endif
 
-  for(i=0;i<N_threads-1;i++)
+  for(i=0;i<N_threads;i++)
   {
     edges.insert(edges.end(),lados[i].begin(),lados[i].end());
     lados[i].clear();

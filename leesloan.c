@@ -10,27 +10,42 @@ struct grup_data *Gr;
 struct cosmoparam cp;
 struct galsloang  *gal;
 
+// AUXILIARES TABLA //
+double mt1min                    ;  
+double mt1max                    ;
+double mt2min                    ;  
+double mt2max                    ;
+double dmt1                      ;
+double dmt2                      ;
+double **rinttabla               ;
+double *dis2red                  ;
+double *rt                       ;
+
 void readoutsloan()
 {
 
   FILE *pf;
   char filename[200];
   int i,j,k;
-  float disred;
+  float disred, dlum;
+  float mt1,mt2;
+  double dismin,dismax;
   #ifdef GAL_LUM
   float mtest;
   ngrup = 0;
   #endif
-  double dismin,   dismax;
-  double alfamin,  alfamax;
-  double deltamin, deltamax;
 
   cp.omegam = 0.3                       ;  /* OMEGA MATERIA                              */
   cp.omegal = 0.7                       ;  /* OMEGA LAMBDA                               */
   cp.omegak = 1.0-cp.omegam-cp.omegal   ;  /* OMEGA CURVATURA                            */
   cp.h0     = 100.                      ;  /* ESTO DEJA TODO EN UNIDADES DE H^-1         */
-  dismin = alfamin = deltamin =  1.E26;
-  dismax = alfamax = deltamax = -1.E26;
+  cp.dlummax = -1.E26                   ;
+  mt1min     = 1.E26                    ;
+  mt1max     = -1.E26                   ;
+  mt2min     = 1.E26                    ;
+  mt2max     = -1.E26                   ;
+  dismin     = 1.E26                    ;
+  dismax     = -1.E26                   ;
 
   RED("Read OUT Sloan...\n");
 
@@ -119,7 +134,22 @@ void readoutsloan()
     gal[i].gal.alfa  *= PI180;
     gal[i].gal.delta *= PI180;
 
+    #ifdef LIM_VOL
+    assert(gal[i].gal.red<zcut);
+    #endif
+
     disred = red2dis(gal[i].gal.red); /*EN MPC*/
+    dlum = disred*(1.0+gal[i].gal.red); 
+
+    if(dlum>cp.dlummax) cp.dlummax = dlum; /* DISTANCIA LUMINOSIDAD MAXIMA */
+
+    mt2  = rmaplim-25.0-5.0*log10(disred*(1.0+gal[i].gal.red)) ;
+    if(mt2>mt2max) mt2max = mt2; /*magnitud absoluta limite maxima*/
+    if(mt2<mt2min) mt2min = mt2; /*magnitud absoluta limite minima*/
+
+    mt1  = rmapmin-25.0-5.0*log10(disred*(1.0+gal[i].gal.red)) ;
+    if(mt1>mt1max) mt1max = mt1; /*magnitud absoluta minima maxima*/
+    if(mt1<mt1min) mt1min = mt1; /*magnitud absoluta minima minima*/
 
     P[i].Pos[0] = disred*cos(gal[i].gal.delta)*cos(gal[i].gal.alfa) ;
     P[i].Pos[1] = disred*cos(gal[i].gal.delta)*sin(gal[i].gal.alfa) ;
@@ -136,10 +166,6 @@ void readoutsloan()
 
     if(P[i].Dis > dismax) dismax = P[i].Dis;
     if(P[i].Dis < dismin) dismin = P[i].Dis;
-    if(gal[i].gal.alfa > alfamax) alfamax = gal[i].gal.alfa;
-    if(gal[i].gal.alfa < alfamin) alfamin = gal[i].gal.alfa;
-    if(gal[i].gal.delta > deltamax) deltamax = gal[i].gal.delta;
-    if(gal[i].gal.delta < deltamin) deltamin = gal[i].gal.delta;
 
     if(gal[i].grupo[0] > j) j = gal[i].grupo[0];
     if(gal[i].grupo[1] > k) k = gal[i].grupo[1];
@@ -148,7 +174,7 @@ void readoutsloan()
 
     if(P[i].sub==0) continue;
 
-    mtest = gal[i].gal.m[2]-25.0-5.0*log10(disred*(1.0+gal[i].gal.red));
+    mtest = (gal[i].gal.m[2]-gal[i].gal.k[2])-25.0-5.0*log10(disred*(1.0+gal[i].gal.red));
     if(mtest<mcut)
     {
       Gr[ngrup].save = P[i].sub;
@@ -161,17 +187,12 @@ void readoutsloan()
     #endif
   }
 
-  cp.vol = (alfamax-alfamin)*(cos(deltamin)-cos(deltamax))*(pow(dismax,3.)-pow(dismin,3.))/3.0;
-
-  fprintf(stdout,"DisMin %.8e DisMax %.8e\n",dismin,dismax);
-  fprintf(stdout,"AlfaMin %.8e AlfaMax %.8e\n",alfamin,alfamax);
-  fprintf(stdout,"DeltaMin %.8e DeltaMax %.8e\n",deltamin,deltamax);
-  fprintf(stdout,"Volumen aprox %.8e\n",cp.vol);
-
   fprintf(stdout,"Num Total %d\n",cp.npart);
   fprintf(stdout,"Num Total de grupos en la primera identificacion %d\n",j);
   fprintf(stdout,"Num Total de grupos en la segunda identificacion %d\n",k);
   fflush(stdout);
+
+  cp.vol = (2.210)*(pow(dismax,3.)-pow(dismin,3.))/3.0;
 
   #ifdef GAL_LUM
   fprintf(stdout,"%d Num de glx mas lum que %f\n",ngrup,mcut);
@@ -182,6 +203,71 @@ void readoutsloan()
   RED("End Read OUT Sloan\n");
 
   fclose(pf);
+
+  #ifdef LIM_VOL
+  rmablim = rmaplim-25.0-5.0*log10(red2dis(zcut)*(1.0+zcut)); // MAGNITUD ABSOLUTA LIMITE DEL CATALOGO  
+  rmabmin = MAGMENOSINF;  // MAGNITUD ABSOLUTA MINIMA DEL CATALOGO  
+  #else
+  rmablim = rmaplim-25.0-5.0*log10(vfid);  // MAGNITUD ABSOLUTA LIMITE DEL CATALOGO  
+  rmabmin = rmapmin-25.0-5.0*log10(vfid);  // MAGNITUD ABSOLUTA MINIMA DEL CATALOGO  
+  #endif
+
+  rintlim = intfl(rmabmin,rmablim);        // INTEGRAL ENTRE LAS MAGNITUDES LIMITES
+  fprintf(stdout, "INTEGRAL LIMITES\n");
+  fprintf(stdout, "%f MABS correspondiente a %f MAPA con una velocidad fiducial %f\n",rmabmin,rmapmin,vfid);
+  fprintf(stdout, "%f MABS correspondiente a %f MAPA con una velocidad fiducial %f\n",rmablim,rmaplim,vfid);
+  fflush(stdout);
+
+  mt2min *= (1.0-1.0e-2*mt2min/fabs(mt2min)); // agranda y achica los limites 
+  mt2max *= (1.0+1.0e-2*mt2max/fabs(mt2max));
+  mt1min *= (1.0-1.0e-2*mt1min/fabs(mt1min));
+  mt1max *= (1.0+1.0e-2*mt1max/fabs(mt1max));
+
+  // TABLA DE LA INTEGRAL DEL FACTOR DE ESCALA //
+  dmt1 = (mt1max-mt1min)/(float)NTABLA;
+  dmt2 = (mt2max-mt2min)/(float)NTABLA;
+  dlum = (redmax-redmin)/(float)NTABLADIS;
+
+  fprintf(stdout,"mt1min mt1max %f %f\n", mt1min, mt1max);
+  fprintf(stdout,"mt2min mt2max %f %f\n", mt2min, mt2max);
+  fprintf(stdout,"redmin redmax %f %f\n", redmin, redmax);
+  fprintf(stdout,"Crea las tablas\n");
+
+  rt = (double *) malloc(NTABLADIS*sizeof(double));
+  dis2red = (double *) malloc(NTABLADIS*sizeof(double));
+  rinttabla = (double **) malloc(NTABLA*sizeof(double *));
+  for(i=0;i<NTABLA;i++)
+    rinttabla[i] = (double *) malloc(NTABLA*sizeof(double));
+
+  #ifdef NTHREADS
+    #pragma omp parallel for default(none) \
+    num_threads(NTHREADS) private(i,j,mt1,mt2) \
+    shared(mt1min,dmt1,mt2min,dmt2,rinttabla)   
+  #endif
+  for(i=0;i<NTABLA;i++ )
+  {
+    mt1 = mt1min + (double)i*dmt1;
+    for(j=0;j<NTABLA;j++ )
+    {
+      mt2 = mt2min + (double)j*dmt2;
+      rinttabla[i][j] = intfl(mt1,mt2);
+    }
+  }
+
+  #ifdef NTHREADS
+    #pragma omp parallel for default(none) \
+    num_threads(NTHREADS) private(i,disred) \
+    shared(redmin,dlum,rt,dis2red)   
+  #endif
+  for(i=0;i<NTABLADIS;i++)
+  {
+    disred = redmin + (double)i*dlum;
+    rt[i]     = disred;
+    dis2red[i]= red2dis(disred);
+  }
+
+  fprintf(stdout,"Termina las tablas\n");
+  fflush(stdout);
 
 }
 
@@ -194,7 +280,11 @@ void read_grup_fof(double *fof)
   FILE *pfin;
  
   GREEN("Read Grups...\n");
-  sprintf(filename,"%s%.2f_%.2f_centros.bin",snap.root,fof[1],fof[0]);
+  #ifdef LIM_VOL
+    sprintf(filename,"%s%.2f_%.2f_%.2f_centros.bin",snap.root,zcut,fof[1],fof[0]);
+  #else
+    sprintf(filename,"%s%.2f_%.2f_centros.bin",snap.root,fof[1],fof[0]);
+  #endif
   pfin = fopen(filename,"rb"); 
 
   fread(&ngrup,sizeof(int),1,pfin);

@@ -1,13 +1,15 @@
 ### snapshot options #######
+EXTRAS += -DLIM_VOL
 EXTRAS += -DGAL_LUM
 EXTRAS += -DBRANCH_SURVIVE
 EXTRAS += -DSORT_DERECHA
-EXTRAS += -DCALCULA_MEDIA
+EXTRAS += -DLEN_FOF_MERCHAN
+#EXTRAS += -DCALCULA_MEDIA
 #EXTRAS += -DLEN_MANUEL
 
 #CC
 CC     := $(OMPP) g++ $(DOMPP)
-DC     := -DNTHREADS=8
+DC     := -DNTHREADS=6
 CFLAGS := -Wall -O3 -fopenmp -g
 GSLL   := -lgsl -lgslcblas
 #VPP_INC := -I/home/lpereyra/voro++/include/voro++

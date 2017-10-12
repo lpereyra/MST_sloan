@@ -13,7 +13,8 @@ struct cosmoparam
     double  omegak			;  /* Omega Curvatura                       */
 		double  h0          ;  /* Parámetro de Hubble                   */
 		double  lbox        ;  /* Lado del box [Kpc / h]                */
-		double  vol         ;  /* Volumen aproximado                    */
+		double  dlummax     ;  /* Distancia Maxima                      */
+		double  vol         ;  /* Volumen del catalogo                  */
 		int     npart       ;  /* Número de partículas                  */
 };
 
