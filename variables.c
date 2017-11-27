@@ -104,7 +104,7 @@ void init_variables(int argc, char **argv){
 
   if(zcut<0.)
   {
-    sprintf(message,"error mcut\n");RED(message);
+    sprintf(message,"error zcut\n");RED(message);
     exit(0);
   }
   #endif
@@ -138,9 +138,9 @@ void init_variables(int argc, char **argv){
   #endif
   BLUE("************* LEN FOF ************\n");
   #ifdef LEN_FOF_MERCHAN
-  GREEN("Usa LEN FOF MERCHAN");
+  GREEN("Usa LEN FOF MERCHAN\n");
   #else
-  GREEN("Usa LEN FOF APROX VOL");
+  GREEN("Usa LEN FOF APROX VOL\n");
   #endif
   BLUE("**********************************\n");
 
