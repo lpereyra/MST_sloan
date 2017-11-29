@@ -91,9 +91,9 @@ bool dist_segment(double fof, int idg, float x, float y, float z)
   izcf = izc + 1;
 
   #ifndef PERIODIC
-  if( ixci < 0 ) ixci = 0;
-  if( iyci < 0 ) iyci = 0;
-  if( izci < 0 ) izci = 0;
+  if( ixci < 0) ixci = 0;
+  if( iyci < 0) iyci = 0;
+  if( izci < 0) izci = 0;
   if( ixcf >= (int)grid.ngrid ) ixcf = (int)grid.ngrid - 1;
   if( iycf >= (int)grid.ngrid ) iycf = (int)grid.ngrid - 1;
   if( izcf >= (int)grid.ngrid ) izcf = (int)grid.ngrid - 1;
@@ -144,15 +144,17 @@ bool dist_segment(double fof, int idg, float x, float y, float z)
           itabla=(int)((rm12-mt2min)/dmt2);
           imintabla=(int)((rmmin12-mt1min)/dmt1);
 
-          if(itabla<0 || itabla >= NTABLA )
+          if(itabla<0 || itabla >= NTABLA)
           {
             fprintf(stdout,"XXXX itabla  = %d\n ",itabla);
+            fflush(stdout);
             exit(-33);
           }
 
           if(imintabla<0 || imintabla >= NTABLA)
           {
             fprintf(stdout,"XXXX imintabla= %d\n ",imintabla);
+            fflush(stdout);
             exit(-33);
           }
 

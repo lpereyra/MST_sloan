@@ -84,14 +84,6 @@ bool DFS(int i, std::vector<std::vector<int> > &vec, int cut)
     if(j>cut) break;
   }
 
-  #ifdef DEBUG
-  if(vec[idv].size()==1)
-  {
-    if(i<idv)
-      return false;
-  }
-  #endif    
-
   if(j<=cut)
     return true;
   else 
@@ -141,7 +133,6 @@ void Podado(int level, std::vector<std::vector<int> > &vec)
   fflush(stdout);
 
   cut = 1;
-  //cut = level;
 
   do{
 
@@ -150,18 +141,18 @@ void Podado(int level, std::vector<std::vector<int> > &vec)
     #ifdef GAL_LUM
       #ifdef BRANCH_SURVIVE
         #pragma omp parallel for num_threads(N_threads) schedule(dynamic) default(none) \
-        private(k) shared(Gr,vec,ngrup,cut,itera,mr_survive) 
+        shared(Gr,vec,ngrup,cut,itera,mr_survive) 
       #else
         #pragma omp parallel for num_threads(N_threads) schedule(dynamic) default(none) \
-        private(k) shared(Gr,vec,ngrup,cut,itera) 
+        shared(Gr,vec,ngrup,cut,itera) 
       #endif
     #else
       #ifdef BRANCH_SURVIVE
         #pragma omp parallel for num_threads(N_threads) schedule(dynamic) default(none) \
-        private(j,k,id,idv) shared(Gr,vec,ngrup,cut,itera,N_part_survive) 
+        shared(Gr,vec,ngrup,cut,itera,N_part_survive) 
       #else
-        #pragma omp parallel for num_threads(N_threads) schedule(dynamic) default(none) \
-        private(j,k,id,idv) shared(Gr,vec,ngrup,cut,itera) 
+        #pragma pel for num_threads(N_threads) schedule(dynamic) default(none) \
+        shared(Gr,vec,ngrup,cut,itera) 
       #endif 
     #endif 
     for(i=0;i<ngrup;i++)
@@ -225,26 +216,14 @@ void Kruskal(int *Padre, int *Rank, std::vector<std::pair<float,std::pair<int,in
 std::vector<std::vector<int> > &adjacency_list)
 {
   int j,k,id,idv;
-  #ifdef DEBUG
-  int id_debug;
-  #endif
 
   sort(edges.begin(),edges.end(), std::greater<std::pair<float,std::pair<int,int> > >());
-
-  #ifdef DEBUG
-  j = edges.back().second.first;
-  id_debug = Gr[j].Save;
-  #endif
 
   while(!edges.empty()) 
   {
     j = edges.back().second.first;
     k = edges.back().second.second;
     edges.pop_back();
-
-    #ifdef DEBUG
-    if(Gr[j].Save!=id_debug) continue;
-    #endif
 
     id = Root(j,Padre);
     idv = Root(k,Padre);
