@@ -26,7 +26,7 @@ void readoutsloan()
 
   FILE *pf;
   char filename[200];
-  int i,j,k;
+  int i,j,iden_01,iden_02;
   float disred, dlum;
   float mt1,mt2;
   double dismin,dismax;
@@ -74,7 +74,7 @@ void readoutsloan()
     pmax[i] = -1.E26;
   }
 
-  j = k = 0;
+  iden_01 = iden_02 = 0;
   for(i=0;i<cp.npart;i++)
   {
     fread(&gal[i].gal.id,sizeof(long int),1,pf);
@@ -138,22 +138,22 @@ void readoutsloan()
     assert(gal[i].gal.red<zcut);
     #endif
 
-    disred = red2dis(gal[i].gal.red); /*EN MPC*/
+    disred = red2dis(gal[i].gal.red); //EN MPC
     dlum = disred*(1.0+gal[i].gal.red); 
 
-    if(dlum>cp.dlummax) cp.dlummax = dlum; /* DISTANCIA LUMINOSIDAD MAXIMA */
+    if(dlum>cp.dlummax) cp.dlummax = dlum; // DISTANCIA LUMINOSIDAD MAXIMA
 
     mt2  = rmaplim-25.0-5.0*log10(disred*(1.0+gal[i].gal.red)) ;
-    if(mt2>mt2max) mt2max = mt2; /*magnitud absoluta limite maxima*/
-    if(mt2<mt2min) mt2min = mt2; /*magnitud absoluta limite minima*/
+    if(mt2>mt2max) mt2max = mt2; //magnitud absoluta limite maxima
+    if(mt2<mt2min) mt2min = mt2; //magnitud absoluta limite minima
 
     mt1  = rmapmin-25.0-5.0*log10(disred*(1.0+gal[i].gal.red)) ;
-    if(mt1>mt1max) mt1max = mt1; /*magnitud absoluta minima maxima*/
-    if(mt1<mt1min) mt1min = mt1; /*magnitud absoluta minima minima*/
+    if(mt1>mt1max) mt1max = mt1; //magnitud absoluta minima maxima
+    if(mt1<mt1min) mt1min = mt1; //magnitud absoluta minima minima
 
     P[i].Pos[0] = disred*cos(gal[i].gal.delta)*cos(gal[i].gal.alfa) ;
     P[i].Pos[1] = disred*cos(gal[i].gal.delta)*sin(gal[i].gal.alfa) ;
-    P[i].Pos[2] = disred*sin(gal[i].gal.delta)                  ;
+    P[i].Pos[2] = disred*sin(gal[i].gal.delta)                      ;
     P[i].Dis    = disred;
     P[i].sub    = gal[i].grupo[0];
 
@@ -167,8 +167,8 @@ void readoutsloan()
     if(P[i].Dis > dismax) dismax = P[i].Dis;
     if(P[i].Dis < dismin) dismin = P[i].Dis;
 
-    if(gal[i].grupo[0] > j) j = gal[i].grupo[0];
-    if(gal[i].grupo[1] > k) k = gal[i].grupo[1];
+    if(gal[i].grupo[0] > iden_01) iden_01 = gal[i].grupo[0];
+    if(gal[i].grupo[1] > iden_02) iden_02 = gal[i].grupo[1];
 
     #ifdef GAL_LUM
 
@@ -188,8 +188,8 @@ void readoutsloan()
   }
 
   fprintf(stdout,"Num Total %d\n",cp.npart);
-  fprintf(stdout,"Num Total de grupos en la primera identificacion %d\n",j);
-  fprintf(stdout,"Num Total de grupos en la segunda identificacion %d\n",k);
+  fprintf(stdout,"Num Total de grupos en la primera identificacion %d\n",iden_01);
+  fprintf(stdout,"Num Total de grupos en la segunda identificacion %d\n",iden_02);
   fflush(stdout);
 
   cp.vol = (2.210)*(pow(dismax,3.)-pow(dismin,3.))/3.0;
@@ -261,9 +261,9 @@ void readoutsloan()
   #endif
   for(i=0;i<NTABLADIS;i++)
   {
-    disred = redmin + (double)i*dlum;
-    rt[i]     = disred;
-    dis2red[i]= red2dis(disred);
+    disred     = redmin + (double)i*dlum;
+    rt[i]      = disred;
+    dis2red[i] = red2dis(disred);
   }
 
   fprintf(stdout,"Termina las tablas\n");

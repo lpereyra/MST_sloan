@@ -32,7 +32,7 @@ void grid_build(void)
   fac = (double)grid.ngrid/(double)cp.lbox ;
 	printf("Building Grid..... Ngrid = %lu\n",grid.ngrid);
 
-  for( i = 0 ; i < grid.nobj ; i++ )
+  for( i = 0 ; i < (int)grid.nobj ; i++ )
   {
 
     if(grid.step!=0 && P[i].sub==0) continue;

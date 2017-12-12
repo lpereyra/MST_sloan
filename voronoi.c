@@ -219,6 +219,12 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
   float v12,d12;
   float d1,d2,tita12;
   float tridif,numera,alfa12;
+  #ifndef GAL_LUM
+  float alfa1,  alfa2;
+  float delta1, delta2;
+  //float red1,   red2;
+  //long unsigned indx;
+  #endif
 
   Ngrid = (int)pow((float)ngrup/5.0,1.0/3.0);
   #ifdef PERIODIC
@@ -292,20 +298,45 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
 
     #ifdef GAL_LUM
 
-      d1   = P[Gr[id].id].Dis;                    // distancia cosmologica
+      d1   = P[Gr[id].id].Dis;                // distancia cosmologica
+
+      #pragma omp parallel for num_threads(N_threads) schedule(static) \
+      default(none) private(Tid,j,idv,dx,dy,dz,r,frac,itera, \
+      d2,tridif,numera,alfa12,tita12,d12,v12) \
+      shared(id,vec,d0,cp,Gr,grid,lados,P,gal,d1)
 
     #else
 
       d1 = sqrt(Gr[id].Pos[0]*Gr[id].Pos[0]+ \
                 Gr[id].Pos[1]*Gr[id].Pos[1]+ \
-                Gr[id].Pos[2]*Gr[id].Pos[2]); // distancia cosmologica      
+                Gr[id].Pos[2]*Gr[id].Pos[2]); // distancia cosmologica     
+
+      //locate(dis2red,NTABLADIS,d1,&indx);                                                         
+      //red1 = (rt[indx]-rt[indx-1])/(dis2red[indx]-dis2red[indx-1])*(d1-dis2red[indx-1])+rt[indx-1]; // redshift
+      delta1 = atan2(Gr[id].Pos[2],sqrt(Gr[id].Pos[0]*Gr[id].Pos[0]+Gr[id].Pos[1]*Gr[id].Pos[1]));
+      
+      if(Gr[id].Pos[2]>=0.0)
+        delta1 += M_PI;
+      
+      if(Gr[id].Pos[0]>0)
+      {
+        if(Gr[id].Pos[1]>=0)
+          alfa1 = atan2(Gr[id].Pos[1],Gr[id].Pos[0]);
+        else
+          alfa1 = 2*M_PI + atan2(Gr[id].Pos[1],Gr[id].Pos[0]);
+      }else if(Gr[id].Pos[0]<0){
+          alfa1 = M_PI + atan2(Gr[id].Pos[1],Gr[id].Pos[0]);
+      }else{
+          alfa1 = 0.5*M_PI*(Gr[id].Pos[1]/fabs(Gr[id].Pos[1]));
+      }
+
+      #pragma omp parallel for num_threads(N_threads) schedule(static) \
+      default(none) private(Tid,j,idv,dx,dy,dz,r,frac,itera, \
+      d2,tridif,numera,alfa12,tita12,d12,v12,alfa2,delta2) \
+      shared(id,vec,d0,cp,Gr,grid,lados,P,gal,d1,alfa1,delta1, \
+      rt,dis2red)
 
     #endif
-
-    #pragma omp parallel for num_threads(N_threads) schedule(static) \
-    default(none) private(Tid,j,idv,dx,dy,dz,r,frac,itera, \
-    d2,tridif,numera,alfa12,tita12,d12,v12) \
-    shared(id,vec,d0,cp,Gr,grid,lados,d1,P,gal)
     for(j=0; j<(int)vec.size(); j++)
     {
 
@@ -376,19 +407,36 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
 
         #else
 
-          alfa12 = gal[Gr[idv].id].gal.alfa-gal[Gr[id].id].gal.alfa;
+          //locate(dis2red,NTABLADIS,d2,&indx);                                                         
+          //red2 = (rt[indx]-rt[indx-1])/(dis2red[indx]-dis2red[indx-1])*(d2-dis2red[indx-1])+rt[indx-1]; // redshift
+          delta2 = atan2(Gr[idv].Pos[2],sqrt(Gr[idv].Pos[0]*Gr[idv].Pos[0]+Gr[idv].Pos[1]*Gr[idv].Pos[1]));
 
-          tita12 = sin(gal[Gr[idv].id].gal.delta)*sin(gal[Gr[id].id].gal.delta)+ \
-                   cos(gal[Gr[idv].id].gal.delta)*cos(gal[Gr[id].id].gal.delta)*cos(alfa12);
+          if(Gr[idv].Pos[2]>=0.0)
+            delta2 += M_PI;
+    
+          if(Gr[idv].Pos[0]>0)
+          {
+            if(Gr[idv].Pos[1]>=0)
+              alfa2 = atan2(Gr[idv].Pos[1],Gr[idv].Pos[0]);
+            else
+              alfa2 = 2*M_PI + atan2(Gr[idv].Pos[1],Gr[idv].Pos[0]);
+          }else if(Gr[idv].Pos[0]<0){
+              alfa2 = M_PI + atan2(Gr[idv].Pos[1],Gr[idv].Pos[0]);
+          }else{   
+              alfa2 = 0.5*M_PI*(Gr[idv].Pos[1]/fabs(Gr[idv].Pos[1]));
+          }
 
-          numera = (cos(gal[Gr[idv].id].gal.delta)*sin(alfa12));
+          alfa12 = alfa2-alfa1;
+
+          tita12 = sin(delta2)*sin(delta1)+ \
+                   cos(delta2)*cos(delta1)*cos(alfa12);
+
+          numera = (cos(delta2)*sin(alfa12));
           numera *= numera;
 
-          tridif = cos(gal[Gr[id].id].gal.delta)*sin(gal[Gr[idv].id].gal.delta)- \
-          sin(gal[Gr[id].id].gal.delta)*cos(gal[Gr[idv].id].gal.delta)*cos(alfa12);
+          tridif = cos(delta1)*sin(delta2) - \
+          sin(delta1)*cos(delta2)*cos(alfa12);
           tridif *= tridif;
-
-          
 
         #endif
 
@@ -399,7 +447,7 @@ void Voronoi_Grupos(double fof, std::vector<std::pair<float,std::pair<int,int> >
 
         d12 = sin(tita12/2.0)*(d1+d2);
         v12 = fabs(d1-d2);          
-        r = d12*d12+v12*v12;
+        r = sqrt(d12*d12+v12*v12);
 
         #ifdef GAL_LUM
           // MAGsun_r = 4.71         // mag_r Hill et al 2010 - https://arxiv.org/pdf/1002.3788.pdf

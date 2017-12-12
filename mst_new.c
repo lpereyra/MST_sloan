@@ -62,7 +62,7 @@ int main(int argc, char **argv)
       N_part_survive = atoi(argv[2]);
       if(N_part_survive==0) 
         RED("******  WARNING ******\n");
-      sprintf(message,"Cut Numpar %g\n",N_part_survive);
+      sprintf(message,"Cut Numpar %d\n",N_part_survive);
     #endif
   RED(message);
   BLUE("**********************************\n");
@@ -274,7 +274,8 @@ void Write_Segments(int *Padre, int *Rank, double *fof)
 
     i = orden.back().second;
  
-    if(Rank[i]==1 && Padre[i]>=0)
+    //if(Rank[i]==1 && Padre[i]>=0)
+    if(Padre[i]>=0)
     {
       aux.push_back(i);
       id = Padre[i];
